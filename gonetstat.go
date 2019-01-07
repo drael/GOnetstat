@@ -48,6 +48,7 @@ type Process struct {
     Name         string
     Pid          string
     Exe          string
+    Fd           string
     State        string
     Ip           string
     Port         int64
@@ -179,6 +180,29 @@ func getProcessName(exe string) string {
     return strings.Title(name)
 }
 
+func findFd(inode string) string {
+    // Loop through all fd dirs of process on /proc to compare the inode and
+    // get the fd.
+
+    fd := "-"
+
+    d, err := filepath.Glob("/proc/[0-9]*/fd/[0-9]*")
+    if err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
+
+    re := regexp.MustCompile(inode)
+    for _, item := range(d) {
+        path, _ := os.Readlink(item)
+        out := re.FindString(path)
+        if len(out) != 0 {
+            f := strings.Split(item, "/")
+            fd = f[len(f) -1]
+        }
+    }
+    return fd
+}
 
 func getUser(uid string) string {
     u, err := user.LookupId(uid)
@@ -227,8 +251,9 @@ func netstat(t string) []Process {
         pid := findPid(line_array[9])
         exe := getProcessExe(pid)
         name := getProcessName(exe)
+	fd := findFd(line_array[9])
 
-        p := Process{uid, name, pid, exe, state, ip, port, fip, fport}
+        p := Process{uid, name, pid, exe, fd, state, ip, port, fip, fport}
 
         Processes = append(Processes, p)
 
