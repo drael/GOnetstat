@@ -125,10 +125,10 @@ func convertIp(ip string) string {
                         ip[2:4],
                         ip[0:2]}
         out = fmt.Sprintf("%v%v:%v%v:%v%v:%v%v:%v%v:%v%v:%v%v:%v%v",
-                            i[14], i[15], i[13], i[12],
-                            i[10], i[11], i[8], i[9],
-                            i[6],  i[7], i[4], i[5],
-                            i[2], i[3], i[0], i[1])
+                            i[12], i[13], i[14], i[15],
+                            i[8], i[9], i[10], i[11],
+                            i[4], i[5], i[7], i[7],
+                            i[0], i[1], i[2], i[3])
 
     } else {
         i := []int64{ hexToDec(ip[6:8]),
