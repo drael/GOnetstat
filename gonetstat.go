@@ -55,6 +55,10 @@ type Process struct {
     ForeignPort  int64
 }
 
+type iNode struct {
+    path string
+    link string
+}
 
 func getData(t string) []string {
     // Get data from tcp or udp file.
@@ -142,18 +146,17 @@ func convertIp(ip string) string {
 }
 
 
-func findPid(inode string, fileDescriptors *[]string) string {
+func findPid(inode string, inodes *[]iNode) string {
     // Loop through all fd dirs of process on /proc to compare the inode and
     // get the pid.
 
     pid := "-"
 
     re := regexp.MustCompile(inode)
-    for _, item := range *fileDescriptors {
-        path, _ := os.Readlink(item)
-        out := re.FindString(path)
+    for _, item := range *inodes {
+        out := re.FindString(item.link)
         if len(out) != 0 {
-            pid = strings.Split(item, "/")[2]
+            pid = strings.Split(item.path, "/")[2]
         }
     }
     return pid
@@ -194,7 +197,7 @@ func removeEmpty(array []string) []string {
     return new_array
 }
 
-func processNetstatLine(line string, fileDescriptors *[]string, output chan<- Process) {
+func processNetstatLine(line string, fileDescriptors *[]iNode, output chan<- Process) {
     line_array := removeEmpty(strings.Split(strings.TrimSpace(line), " "))
     ip_port := strings.Split(line_array[1], ":")
     ip := convertIp(ip_port[0])
@@ -222,6 +225,25 @@ func getFileDescriptors() []string {
     return d
 }
 
+func getInodes() []iNode {
+    fileDescriptors := getFileDescriptors()
+    var inodes []iNode
+    res := make(chan iNode)
+
+    go func(fileDescriptors *[]string, output chan<-iNode) {
+        for _, item := range *fileDescriptors {
+            link, _ := os.Readlink(item)
+            output <- iNode{item, link}
+        }
+    }(&fileDescriptors, res)
+
+    for _, _ = range fileDescriptors {
+        inode := <- res
+        inodes = append(inodes, inode)
+    }
+    return inodes
+}
+
 
 func netstat(t string) []Process {
     // Return a array of Process with Name, Ip, Port, State .. etc
@@ -232,11 +254,11 @@ func netstat(t string) []Process {
     data := getData(t)
     res := make(chan Process)
 
-    fileDescriptors := getFileDescriptors()
+    inodes := getInodes()
 
 
     for _, line := range(data) {
-        go processNetstatLine(line, &fileDescriptors, res)
+        go processNetstatLine(line, &inodes, res)
     }
 
     for _, _ = range(data) {
