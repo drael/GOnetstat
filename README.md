@@ -6,7 +6,7 @@ So I challenged myself to make it as fast as I can.
 I'm adding a branch for each faster version. 
 In the readme of each version you can find its execution time.
 
-#Execution time
+# Execution time
 Original execution time:
 ```
 PASS
@@ -19,5 +19,5 @@ PASS
 ok      GOnetstat       0.192s
 ```
 
-#Changes
+# Changes
 Original
