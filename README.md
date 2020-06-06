@@ -10,20 +10,21 @@ In the readme of each version you can find its execution time.
 Original execution time:
 ```
 PASS
-ok      GOnetstat       0.396s
+ok      GOnetstat       0.446s
 ```
 
 Current version execution time:
 ```
 PASS
-ok      GOnetstat       0.132s
+ok      GOnetstat       0.076s
 ```
 
 # Changes
 
-* Made the main loop that processes the netstat lines use goroutines with channels instead of only using one thread.
+* Made the findpid function only get all process file descriptors once instead of for every netstat line.
 
 # Blog
-First off I read through the code and found that the function "netstat" is doing most of the processing.
-But it just loops through all the lines, and each line takes some time to process. Go routines helped that a lot.
+This time I used go profiling and found that the main bottleneck is the findpid function.
+So I made it run the function once and pass a pointer of the result to every goroutine processing the netstat lines.
+
 

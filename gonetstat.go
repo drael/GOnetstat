@@ -142,20 +142,14 @@ func convertIp(ip string) string {
 }
 
 
-func findPid(inode string) string {
+func findPid(inode string, fileDescriptors *[]string) string {
     // Loop through all fd dirs of process on /proc to compare the inode and
     // get the pid.
 
     pid := "-"
 
-    d, err := filepath.Glob("/proc/[0-9]*/fd/[0-9]*")
-    if err != nil {
-        fmt.Println(err)
-        os.Exit(1)
-    }
-
     re := regexp.MustCompile(inode)
-    for _, item := range(d) {
+    for _, item := range *fileDescriptors {
         path, _ := os.Readlink(item)
         out := re.FindString(path)
         if len(out) != 0 {
@@ -200,7 +194,7 @@ func removeEmpty(array []string) []string {
     return new_array
 }
 
-func processNetstatLine(line string, output chan<- Process) {
+func processNetstatLine(line string, fileDescriptors *[]string, output chan<- Process) {
     line_array := removeEmpty(strings.Split(strings.TrimSpace(line), " "))
     ip_port := strings.Split(line_array[1], ":")
     ip := convertIp(ip_port[0])
@@ -213,10 +207,19 @@ func processNetstatLine(line string, output chan<- Process) {
 
     state := STATE[line_array[3]]
     uid := getUser(line_array[7])
-    pid := findPid(line_array[9])
+    pid := findPid(line_array[9], fileDescriptors)
     exe := getProcessExe(pid)
     name := getProcessName(exe)
     output <- Process{uid, name, pid, exe, state, ip, port, fip, fport}
+}
+
+func getFileDescriptors() []string {
+    d, err := filepath.Glob("/proc/[0-9]*/fd/[0-9]*")
+    if err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
+    return d
 }
 
 
@@ -229,8 +232,11 @@ func netstat(t string) []Process {
     data := getData(t)
     res := make(chan Process)
 
+    fileDescriptors := getFileDescriptors()
+
+
     for _, line := range(data) {
-        go processNetstatLine(line, res)
+        go processNetstatLine(line, &fileDescriptors, res)
     }
 
     for _, _ = range(data) {
