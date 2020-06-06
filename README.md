@@ -10,21 +10,21 @@ In the readme of each version you can find its execution time.
 Original execution time:
 ```
 PASS
-ok      GOnetstat       0.542s
+ok      GOnetstat       0.413s
 ```
 
 Current version execution time:
 ```
 PASS
-ok      GOnetstat       0.049s
+ok      GOnetstat       0.045s
 ```
 
 # Changes
 
-* First reads all process links then iterates over it instead of reading all links in each of the netstat lines
+* Made the process array and the inodes array statically lengthed
 
 # Blog
-After profiling I saw that readlink is taking most of the cpu time. After some thinking I got to the conclusion that its because each line is reading all process links.
-So I'm reading all the links at the start.
+After a bit of profiling I saw runtime.futex using a most of the cpu time.
+So I made all the process and inodes array statically lengthed, which removes the need for the append function.
 
 

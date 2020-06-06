@@ -1,9 +1,8 @@
 /*
-    Simple Netstat implementation.
-    Get data from /proc/net/tcp and /proc/net/udp and
-    and parse /proc/[0-9]/fd/[0-9].
-
-    Author: Rafael Santos <rafael@sourcecode.net.br>
+   Simple Netstat implementation.
+   Get data from /proc/net/tcp and /proc/net/udp and
+   and parse /proc/[0-9]/fd/[0-9].
+   Author: Rafael Santos <rafael@sourcecode.net.br>
 */
 
 package GOnetstat
@@ -29,17 +28,17 @@ const (
 )
 
 var STATE = map[string]string {
-                            "01": "ESTABLISHED",
-                            "02": "SYN_SENT",
-                            "03": "SYN_RECV",
-                            "04": "FIN_WAIT1",
-                            "05": "FIN_WAIT2",
-                            "06": "TIME_WAIT",
-                            "07": "CLOSE",
-                            "08": "CLOSE_WAIT",
-                            "09": "LAST_ACK",
-                            "0A": "LISTEN",
-                            "0B": "CLOSING",
+    "01": "ESTABLISHED",
+    "02": "SYN_SENT",
+    "03": "SYN_RECV",
+    "04": "FIN_WAIT1",
+    "05": "FIN_WAIT2",
+    "06": "TIME_WAIT",
+    "07": "CLOSE",
+    "08": "CLOSE_WAIT",
+    "09": "LAST_ACK",
+    "0A": "LISTEN",
+    "0B": "CLOSING",
 }
 
 
@@ -55,10 +54,6 @@ type Process struct {
     ForeignPort  int64
 }
 
-type iNode struct {
-    path string
-    link string
-}
 
 func getData(t string) []string {
     // Get data from tcp or udp file.
@@ -113,50 +108,57 @@ func convertIp(ip string) string {
     // Check ip size if greater than 8 is a ipv6 type
     if len(ip) > 8 {
         i := []string{ ip[30:32],
-                        ip[28:30],
-                        ip[26:28],
-                        ip[24:26],
-                        ip[22:24],
-                        ip[20:22],
-                        ip[18:20],
-                        ip[16:18],
-                        ip[14:16],
-                        ip[12:14],
-                        ip[10:12],
-                        ip[8:10],
-                        ip[6:8],
-                        ip[4:6],
-                        ip[2:4],
-                        ip[0:2]}
+            ip[28:30],
+            ip[26:28],
+            ip[24:26],
+            ip[22:24],
+            ip[20:22],
+            ip[18:20],
+            ip[16:18],
+            ip[14:16],
+            ip[12:14],
+            ip[10:12],
+            ip[8:10],
+            ip[6:8],
+            ip[4:6],
+            ip[2:4],
+            ip[0:2]}
         out = fmt.Sprintf("%v%v:%v%v:%v%v:%v%v:%v%v:%v%v:%v%v:%v%v",
-                            i[14], i[15], i[13], i[12],
-                            i[10], i[11], i[8], i[9],
-                            i[6],  i[7], i[4], i[5],
-                            i[2], i[3], i[0], i[1])
+            i[14], i[15], i[13], i[12],
+            i[10], i[11], i[8], i[9],
+            i[6],  i[7], i[4], i[5],
+            i[2], i[3], i[0], i[1])
 
     } else {
         i := []int64{ hexToDec(ip[6:8]),
-                       hexToDec(ip[4:6]),
-                       hexToDec(ip[2:4]),
-                       hexToDec(ip[0:2]) }
+            hexToDec(ip[4:6]),
+            hexToDec(ip[2:4]),
+            hexToDec(ip[0:2]) }
 
-       out = fmt.Sprintf("%v.%v.%v.%v", i[0], i[1], i[2], i[3])
+        out = fmt.Sprintf("%v.%v.%v.%v", i[0], i[1], i[2], i[3])
     }
-   return out
+    return out
 }
 
 
-func findPid(inode string, inodes *[]iNode) string {
+func findPid(inode string) string {
     // Loop through all fd dirs of process on /proc to compare the inode and
     // get the pid.
 
     pid := "-"
 
+    d, err := filepath.Glob("/proc/[0-9]*/fd/[0-9]*")
+    if err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
+
     re := regexp.MustCompile(inode)
-    for _, item := range *inodes {
-        out := re.FindString(item.link)
+    for _, item := range(d) {
+        path, _ := os.Readlink(item)
+        out := re.FindString(path)
         if len(out) != 0 {
-            pid = strings.Split(item.path, "/")[2]
+            pid = strings.Split(item, "/")[2]
         }
     }
     return pid
@@ -191,57 +193,10 @@ func removeEmpty(array []string) []string {
     var new_array [] string
     for _, i := range(array) {
         if i != "" {
-           new_array = append(new_array, i)
+            new_array = append(new_array, i)
         }
     }
     return new_array
-}
-
-func processNetstatLine(line string, fileDescriptors *[]iNode, output chan<- Process) {
-    line_array := removeEmpty(strings.Split(strings.TrimSpace(line), " "))
-    ip_port := strings.Split(line_array[1], ":")
-    ip := convertIp(ip_port[0])
-    port := hexToDec(ip_port[1])
-
-    // foreign ip and port
-    fip_port := strings.Split(line_array[2], ":")
-    fip := convertIp(fip_port[0])
-    fport := hexToDec(fip_port[1])
-
-    state := STATE[line_array[3]]
-    uid := getUser(line_array[7])
-    pid := findPid(line_array[9], fileDescriptors)
-    exe := getProcessExe(pid)
-    name := getProcessName(exe)
-    output <- Process{uid, name, pid, exe, state, ip, port, fip, fport}
-}
-
-func getFileDescriptors() []string {
-    d, err := filepath.Glob("/proc/[0-9]*/fd/[0-9]*")
-    if err != nil {
-        fmt.Println(err)
-        os.Exit(1)
-    }
-    return d
-}
-
-func getInodes() []iNode {
-    fileDescriptors := getFileDescriptors()
-    var inodes []iNode
-    res := make(chan iNode)
-
-    go func(fileDescriptors *[]string, output chan<-iNode) {
-        for _, item := range *fileDescriptors {
-            link, _ := os.Readlink(item)
-            output <- iNode{item, link}
-        }
-    }(&fileDescriptors, res)
-
-    for _, _ = range fileDescriptors {
-        inode := <- res
-        inodes = append(inodes, inode)
-    }
-    return inodes
 }
 
 
@@ -252,18 +207,30 @@ func netstat(t string) []Process {
     var Processes []Process
 
     data := getData(t)
-    res := make(chan Process)
-
-    inodes := getInodes()
-
 
     for _, line := range(data) {
-        go processNetstatLine(line, &inodes, res)
-    }
 
-    for _, _ = range(data) {
-        p := <- res
+        // local ip and port
+        line_array := removeEmpty(strings.Split(strings.TrimSpace(line), " "))
+        ip_port := strings.Split(line_array[1], ":")
+        ip := convertIp(ip_port[0])
+        port := hexToDec(ip_port[1])
+
+        // foreign ip and port
+        fip_port := strings.Split(line_array[2], ":")
+        fip := convertIp(fip_port[0])
+        fport := hexToDec(fip_port[1])
+
+        state := STATE[line_array[3]]
+        uid := getUser(line_array[7])
+        pid := findPid(line_array[9])
+        exe := getProcessExe(pid)
+        name := getProcessName(exe)
+
+        p := Process{uid, name, pid, exe, state, ip, port, fip, fport}
+
         Processes = append(Processes, p)
+
     }
 
     return Processes
