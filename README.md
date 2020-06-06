@@ -10,14 +10,20 @@ In the readme of each version you can find its execution time.
 Original execution time:
 ```
 PASS
-ok      GOnetstat       0.192s
+ok      GOnetstat       0.396s
 ```
 
 Current version execution time:
 ```
 PASS
-ok      GOnetstat       0.192s
+ok      GOnetstat       0.132s
 ```
 
 # Changes
-Original
+
+* Made the main loop that processes the netstat lines use goroutines with channels instead of only using one thread.
+
+# Blog
+First off I read through the code and found that the function "netstat" is doing most of the processing.
+But it just loops through all the lines, and each line takes some time to process. Go routines helped that a lot.
+

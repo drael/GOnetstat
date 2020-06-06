@@ -200,6 +200,25 @@ func removeEmpty(array []string) []string {
     return new_array
 }
 
+func processNetstatLine(line string, output chan<- Process) {
+    line_array := removeEmpty(strings.Split(strings.TrimSpace(line), " "))
+    ip_port := strings.Split(line_array[1], ":")
+    ip := convertIp(ip_port[0])
+    port := hexToDec(ip_port[1])
+
+    // foreign ip and port
+    fip_port := strings.Split(line_array[2], ":")
+    fip := convertIp(fip_port[0])
+    fport := hexToDec(fip_port[1])
+
+    state := STATE[line_array[3]]
+    uid := getUser(line_array[7])
+    pid := findPid(line_array[9])
+    exe := getProcessExe(pid)
+    name := getProcessName(exe)
+    output <- Process{uid, name, pid, exe, state, ip, port, fip, fport}
+}
+
 
 func netstat(t string) []Process {
     // Return a array of Process with Name, Ip, Port, State .. etc
@@ -208,30 +227,15 @@ func netstat(t string) []Process {
     var Processes []Process
 
     data := getData(t)
+    res := make(chan Process)
 
     for _, line := range(data) {
+        go processNetstatLine(line, res)
+    }
 
-        // local ip and port
-        line_array := removeEmpty(strings.Split(strings.TrimSpace(line), " "))
-        ip_port := strings.Split(line_array[1], ":")
-        ip := convertIp(ip_port[0])
-        port := hexToDec(ip_port[1])
-
-        // foreign ip and port
-        fip_port := strings.Split(line_array[2], ":")
-        fip := convertIp(fip_port[0])
-        fport := hexToDec(fip_port[1])
-
-        state := STATE[line_array[3]]
-        uid := getUser(line_array[7])
-        pid := findPid(line_array[9])
-        exe := getProcessExe(pid)
-        name := getProcessName(exe)
-
-        p := Process{uid, name, pid, exe, state, ip, port, fip, fport}
-
+    for _, _ = range(data) {
+        p := <- res
         Processes = append(Processes, p)
-
     }
 
     return Processes
