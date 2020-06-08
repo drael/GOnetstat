@@ -228,7 +228,7 @@ func getFileDescriptors() []string {
 func getInodes() []iNode {
     fileDescriptors := getFileDescriptors()
     inodes := make([]iNode, len(fileDescriptors))
-    res := make(chan iNode)
+    res := make(chan iNode, len(fileDescriptors))
 
     go func(fileDescriptors *[]string, output chan<-iNode) {
         for _, item := range *fileDescriptors {
@@ -252,7 +252,7 @@ func netstat(t string) []Process {
 
     data := getData(t)
     Processes := make([]Process, len(data))
-    res := make(chan Process)
+    res := make(chan Process, len(data))
 
     inodes := getInodes()
 
