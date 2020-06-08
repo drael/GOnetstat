@@ -10,21 +10,19 @@ In the readme of each version you can find its execution time.
 Original execution time:
 ```
 PASS
-ok      GOnetstat       0.413s
+ok      GOnetstat       0.955s
 ```
 
 Current version execution time:
 ```
 PASS
-ok      GOnetstat       0.045s
+ok      GOnetstat       0.079s
 ```
 
 # Changes
 
-* Made the process array and the inodes array statically lengthed
+* Added a buffer to the channels which can free resources (less goroutines blocking)
 
 # Blog
-After a bit of profiling I saw runtime.futex using a most of the cpu time.
-So I made all the process and inodes array statically lengthed, which removes the need for the append function.
-
+I read a lot about channels then I came to the conclusion that I needed a buffer on my channels. A lot of goroutines blocked creates a lot of OS threads. Freeing them can make the program use less resources.
 
