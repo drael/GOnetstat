@@ -21,10 +21,14 @@ import (
 
 
 const (
-    PROC_TCP = "/proc/net/tcp"
-    PROC_UDP = "/proc/net/udp"
-    PROC_TCP6 = "/proc/net/tcp6"
-    PROC_UDP6 = "/proc/net/udp6"
+   // PROC_TCP = "/proc/net/tcp"
+  //  PROC_UDP = "/proc/net/udp"
+  //  PROC_TCP6 = "/proc/net/tcp6"
+  //  PROC_UDP6 = "/proc/net/udp6"
+    PROC_TCP = "C:\\Windows\\System32"
+    PROC_TCP6 = "C:\\Windows\\System32"
+    PROC_UDP = "C:\\Windows\\System32"
+    PROC_UDP6 = "C:\\Windows\\System32"
 
 )
 
