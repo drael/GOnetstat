@@ -11,12 +11,12 @@ package GOnetstat
 import (
     "fmt"
     "io/ioutil"
-    "strings"
     "os"
     "os/user"
-    "strconv"
     "path/filepath"
     "regexp"
+    "strconv"
+    "strings"
 )
 
 
@@ -261,9 +261,9 @@ func netstat(t string) []Process {
         go processNetstatLine(line, &inodes, res)
     }
 
-    for _, _ = range data {
+    for i, _ := range data {
         p := <- res
-        Processes = append(Processes, p)
+        Processes[i] = p
     }
 
     return Processes
