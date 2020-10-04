@@ -11,12 +11,12 @@ package GOnetstat
 import (
     "fmt"
     "io/ioutil"
-    "strings"
     "os"
     "os/user"
-    "strconv"
     "path/filepath"
     "regexp"
+    "strconv"
+    "strings"
 )
 
 
@@ -55,6 +55,10 @@ type Process struct {
     ForeignPort  int64
 }
 
+type iNode struct {
+    path string
+    link string
+}
 
 func getData(t string) []string {
     // Get data from tcp or udp file.
@@ -142,24 +146,17 @@ func convertIp(ip string) string {
 }
 
 
-func findPid(inode string) string {
+func findPid(inode string, inodes *[]iNode) string {
     // Loop through all fd dirs of process on /proc to compare the inode and
     // get the pid.
 
     pid := "-"
 
-    d, err := filepath.Glob("/proc/[0-9]*/fd/[0-9]*")
-    if err != nil {
-        fmt.Println(err)
-        os.Exit(1)
-    }
-
     re := regexp.MustCompile(inode)
-    for _, item := range(d) {
-        path, _ := os.Readlink(item)
-        out := re.FindString(path)
+    for _, item := range *inodes {
+        out := re.FindString(item.link)
         if len(out) != 0 {
-            pid = strings.Split(item, "/")[2]
+            pid = strings.Split(item.path, "/")[2]
         }
     }
     return pid
@@ -200,38 +197,73 @@ func removeEmpty(array []string) []string {
     return new_array
 }
 
+func processNetstatLine(line string, fileDescriptors *[]iNode, output chan<- Process) {
+    line_array := removeEmpty(strings.Split(strings.TrimSpace(line), " "))
+    ip_port := strings.Split(line_array[1], ":")
+    ip := convertIp(ip_port[0])
+    port := hexToDec(ip_port[1])
+
+    // foreign ip and port
+    fip_port := strings.Split(line_array[2], ":")
+    fip := convertIp(fip_port[0])
+    fport := hexToDec(fip_port[1])
+
+    state := STATE[line_array[3]]
+    uid := getUser(line_array[7])
+    pid := findPid(line_array[9], fileDescriptors)
+    exe := getProcessExe(pid)
+    name := getProcessName(exe)
+    output <- Process{uid, name, pid, exe, state, ip, port, fip, fport}
+}
+
+func getFileDescriptors() []string {
+    d, err := filepath.Glob("/proc/[0-9]*/fd/[0-9]*")
+    if err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
+    return d
+}
+
+func getInodes() []iNode {
+    fileDescriptors := getFileDescriptors()
+    inodes := make([]iNode, len(fileDescriptors))
+    res := make(chan iNode, len(fileDescriptors))
+
+    go func(fileDescriptors *[]string, output chan<-iNode) {
+        for _, item := range *fileDescriptors {
+            link, _ := os.Readlink(item)
+            output <- iNode{item, link}
+        }
+    }(&fileDescriptors, res)
+
+    for _, _ = range fileDescriptors {
+        inode := <- res
+        inodes = append(inodes, inode)
+    }
+    return inodes
+}
+
 
 func netstat(t string) []Process {
     // Return a array of Process with Name, Ip, Port, State .. etc
     // Require Root acess to get information about some processes.
 
-    var Processes []Process
 
     data := getData(t)
+    Processes := make([]Process, len(data))
+    res := make(chan Process, len(data))
 
-    for _, line := range(data) {
+    inodes := getInodes()
 
-        // local ip and port
-        line_array := removeEmpty(strings.Split(strings.TrimSpace(line), " "))
-        ip_port := strings.Split(line_array[1], ":")
-        ip := convertIp(ip_port[0])
-        port := hexToDec(ip_port[1])
 
-        // foreign ip and port
-        fip_port := strings.Split(line_array[2], ":")
-        fip := convertIp(fip_port[0])
-        fport := hexToDec(fip_port[1])
+    for _, line := range data {
+        go processNetstatLine(line, &inodes, res)
+    }
 
-        state := STATE[line_array[3]]
-        uid := getUser(line_array[7])
-        pid := findPid(line_array[9])
-        exe := getProcessExe(pid)
-        name := getProcessName(exe)
-
-        p := Process{uid, name, pid, exe, state, ip, port, fip, fport}
-
-        Processes = append(Processes, p)
-
+    for i, _ := range data {
+        p := <- res
+        Processes[i] = p
     }
 
     return Processes
