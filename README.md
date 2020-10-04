@@ -1,28 +1,41 @@
-# Making GOnetstat faster
+# GOnetstat
 
-I needed a netstat library for some program in go. Problem is the only one that exists is very slow.
-So I challenged myself to make it as fast as I can.
+Netstat implementation in Golang.
 
-I'm adding a branch for each faster version. 
-In the readme of each version you can find its execution time.
+This Package get data from /proc/net/tcp|6 and /proc/net/udp|6 and parse
+/proc/[0-9]*/fd/[0-9]* to match the correct inode.
 
-# Execution time
-Original execution time:
-```
-PASS
-ok      GOnetstat       0.955s
-```
+## Usage
 
-Current version execution time:
-```
-PASS
-ok      GOnetstat       0.079s
+<b>TCP/UDP</b>
+```go
+tcp_data := GOnetstat.Tcp()
+udp_data := GOnetstat.Udp()
 ```
 
-# Changes
+This will return a array of a Process struct like this
 
-* Added a buffer to the channels which can free resources (less goroutines blocking)
+```go
+type Process struct {
+    User         string
+    Name         string
+    Pid          string
+    Exe          string
+    State        string
+    Ip           string
+    Port         int64
+    ForeignIp    string
+    ForeignPort  int64
+}
+```
+So you can loop through data output and format the output of your program
+in whatever way you want it.
+See the Examples folder!
 
-# Blog
-I read a lot about channels then I came to the conclusion that I needed a buffer on my channels. A lot of goroutines blocked creates a lot of OS threads. Freeing them can make the program use less resources.
-
+<b>TCP6/UDP6</b>
+```go
+tcp6_data := GOnetstat.Tcp6()
+udp6_data := GOnetstat.Udp6()
+```
+The return will be a array of a Process struct like mentioned above.
+Still need to create a way to compress the ipv6 because is too long.
